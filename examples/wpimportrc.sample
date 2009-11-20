@@ -1,0 +1,312 @@
+# wpdownloadrc.sample
+#
+# This file specifies which languages should be imported
+#
+# Copy it to ~/.wpimportrc and adjust it to fit your needs.
+
+[Patterns]
+
+# dump_file_pattern
+#
+# Regular expression for dump file names that contains the following groups:
+#
+#   * language
+#   * date
+#   * table
+
+dump_file_pattern = (?P<language>[\w_]+)wiki-(?P<date>\d{8})-(?P<table>[\w_-]+).*
+
+[Database]
+
+# db_name_template
+#
+# Set the database naming scheme. You *have* to include the following
+# placeholders in the template given here:
+#
+#   * ${language}   The ISO 631 language code (de, en, sw, zh, ...)
+#   * ${date}       The date when the database was dumped (20090101, ...)
+#
+# The default wp_${langcode}_${date} will for example generate the following
+# names:
+#
+#   * wp_de_20090101
+#   * wp_zh_20090101
+#   ...
+
+db_name_template = wp_${language}_${date}
+
+# db_name_date_fmt
+#
+# Set the database date format. The format string has to be compatible with
+# strftime
+#
+db_name_date_fmt = %Y%m%d
+
+[Languages]
+aa = True
+ab = True
+af = True
+ak = True
+als = True
+am = True
+ang = True
+an = True
+arc = True
+ar = True
+arz = True
+ast = True
+as = True
+av = True
+ay = True
+az = True
+bar = True
+bat_smg = True
+ba = True
+bcl = True
+be = True
+be_x_old = True
+bg = True
+bh = True
+bi = True
+bm = True
+bn = True
+bo = True
+bpy = True
+br = True
+bs = True
+bug = True
+bxr = True
+ca = True
+cbk_zam = True
+cdo = True
+ceb = True
+ce = True
+cho = True
+chr = True
+ch = True
+chy = True
+co = True
+crh = True
+cr = True
+csb = True
+cs = True
+cu = True
+cv = True
+cy = True
+da = True
+de = True
+diq = True
+dsb = True
+dv = True
+dz = True
+ee = True
+el = True
+eml = True
+en = True
+eo = True
+es = True
+et = True
+eu = True
+ext = True
+fa = True
+ff = True
+fiu_vro = True
+fi = True
+fj = True
+fo = True
+frp = True
+fr = True
+fur = True
+fy = True
+gan = True
+ga = True
+gd = True
+glk = True
+gl = True
+gn = True
+got = True
+gu = True
+gv = True
+hak = True
+ha = True
+haw = True
+he = True
+hif = True
+hi = True
+ho = True
+hr = True
+hsb = True
+ht = True
+hu = True
+hy = True
+hz = True
+ia = True
+id = True
+ie = True
+ig = True
+ii = True
+ik = True
+ilo = True
+io = True
+is = True
+it = True
+iu = True
+ja = True
+jbo = True
+jv = True
+kaa = True
+kab = True
+ka = True
+kg = True
+ki = True
+kj = True
+kk = True
+kl = True
+km = True
+kn = True
+ko = True
+kr = True
+ksh = True
+ks = True
+ku = True
+kv = True
+kw = True
+ky = True
+lad = True
+la = True
+lbe = True
+lb = True
+lg = True
+lij = True
+li = True
+lmo = True
+ln = True
+lo = True
+lt = True
+lv = True
+map_bms = True
+mdf = True
+mg = True
+mhr = True
+mh = True
+mi = True
+mk = True
+ml = True
+mn = True
+mo = True
+mr = True
+ms = True
+mt = True
+mus = True
+myv = True
+my = True
+mzn = True
+nah = True
+nap = True
+na = True
+nds_nl = True
+nds = True
+ne = True
+new = True
+ng = True
+nl = True
+nn = True
+nov = True
+no = True
+nrm = True
+nv = True
+ny = True
+oc = True
+om = True
+or = True
+os = True
+pag = True
+pam = True
+pap = True
+pa = True
+pdc = True
+pih = True
+pi = True
+pl = True
+pms = True
+pnt = True
+ps = True
+pt = True
+qu = True
+rm = True
+rmy = True
+rn = True
+roa_rup = True
+roa_tara = True
+ro = True
+ru = True
+rw = True
+sah = True
+sa = True
+scn = True
+sco = True
+sc = True
+sd = True
+se = True
+sg = True
+sh = True
+simple = True
+si = True
+sk = True
+sl = True
+sm = True
+sn = True
+so = True
+sq = True
+srn = True
+sr = True
+ss = True
+stq = True
+st = True
+su = True
+sv = True
+sw = True
+szl = True
+ta = True
+tet = True
+te = True
+tg = True
+th = True
+ti = True
+tk = True
+tl = True
+tn = True
+tokipona = True
+to = True
+tpi = True
+tr = True
+ts = True
+tt = True
+tum = True
+tw = True
+ty = True
+udm = True
+ug = True
+uk = True
+ur = True
+uz = True
+vec = True
+ve = True
+vi = True
+vls = True
+vo = True
+war = True
+wa = True
+wo = True
+wuu = True
+xal = True
+xh = True
+yi = True
+yo = True
+za = True
+zea = True
+zh_classical = True
+zh_min_nan = True
+zh = True
+zh_yue = True
+zu = True

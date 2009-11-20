@@ -1,0 +1,263 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
+# © Copyright 2009 Wolodja Wentland. All Rights Reserved.
+
+# This file is part of wp-import.
+#
+# wp-import is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# wp-import is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with wp-import. If not, see <http://www.gnu.org/licenses/>.
+
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+import logging
+import sys
+import optparse
+import ConfigParser
+import os
+import getpass
+
+import mwdb
+import wp_import
+import wp_import.importer as wpi_imp
+import wp_import.exceptions as wpi_exc
+import wp_import.postgresql as wpi_psql
+
+__version__ = '0.2a'
+__author__ = 'Wolodja Wentland <wentland@cl.uni-heidelberg.de>'
+__copyright__ = '© Copyright 2009 Wolodja Wentland'
+
+# the global logger
+_log = logging.Logger("wp-import")
+_log.setLevel(logging.DEBUG)
+
+
+class WarningLimit(logging.Filter):
+    """Discard all records with a level higher or equal to
+    logging.WARNING
+    """
+
+    def filter(self, record):
+        """Filter log record by level
+
+        :param record:  Log record in question
+        :type record:   logging.LogRecord
+        """
+        if record.levelno < logging.WARNING:
+            return True
+        return False
+
+
+def init_parser():
+    """Initialise command line parser."""
+
+    usage = "Usage: %prog [options] PATH"
+    parser = optparse.OptionParser(usage)
+
+    parser.add_option("-q", "--quiet",
+                      action="store_true", dest="quiet",
+                      default=False,
+                      help="do not generate output (only report errors)")
+    parser.add_option("-v", "--verbose",
+                      action="store_true", dest="verbose",
+                      default=False,
+                      help="generate verbose output")
+    parser.add_option("--debug",
+                      action="store_true", dest="debug",
+                      default=False,
+                      help="generate debugging output")
+    parser.add_option('-c', '--config', metavar='FILE',
+                      type='string',
+                      default=os.path.expanduser('~/.wpimportrc'),
+                      help='load configuration from FILE ' \
+                      '[default: %default]')
+    parser.add_option('--version',
+                      action='store_true',
+                      default=False,
+                      help='display version')
+
+    imp_options = optparse.OptionGroup(parser, 'Import')
+    imp_options.add_option('--pattern',
+                           metavar='PATTERN',
+                           type='string',
+                           default='*.sql.gz',
+                           help='import files matching PATTERN ' \
+                           '[default: %default]')
+    imp_options.add_option('--reimport',
+                           action='store_true',
+                           dest='reimport',
+                           default=False,
+                           help='Reimport all dumps. Tables will be dropped' \
+                           'if necessarry [default: %default]')
+    parser.add_option_group(imp_options)
+
+    # Logging related options
+
+    log_options = optparse.OptionGroup(parser, "Logging")
+    log_level = ["DEBUG", "INFO", "WARNING", "ERROR"]
+    log_options.add_option("--log-file", metavar="FILE",
+                           type="string",
+                           help="write logs to FILE")
+    log_options.add_option('--log-file-level',
+                           help='set log level (' + \
+                           ', '.join(log_level) +
+                           ') [default: %default]',
+                       action='store', default='INFO',
+                       type='choice', choices = log_level)
+    parser.add_option_group(log_options)
+
+    # General options for all database vendors
+    db_options = optparse.OptionGroup(parser, 'Database', '')
+    db_options.add_option('--enable-postgresql',
+                          help='Enable import into PostgreSQL',
+                          action='store_true',
+                          dest='postgresql')
+    parser.add_option_group(db_options)
+
+    # PostgreSQL
+    psql_options = optparse.OptionGroup( parser, 'PostgreSQL')
+    psql_options.add_option('--pg-user',
+                            help='PostgreSQL user name. ' \
+                            '[default: %default ($PGUSER)]',
+                            metavar='PGUSER',
+                            type='string',
+                            default = os.environ.get('PGUSER', ''))
+    psql_options.add_option('--pg-host',
+                            help = 'Host of the PostgreSQL database. ' \
+                            '[default: %default ($PGHOST)]',
+                            metavar='PGHOST',
+                            type='string',
+                            default=os.environ.get('PGHOST', ''))
+    psql_options.add_option('--pg-port',
+                            help = 'Port of the PostgreSQL database. ' \
+                            '[default: %default ($PGPORT)]',
+                            metavar='PGPORT',
+                            type='string',
+                            default=os.environ.get('PGPORT', ''))
+    psql_options.add_option('--pg-passfile',
+                            help = 'File containing user credentials ' \
+                            '[default: %default ($PGPASSFILE)]',
+                            metavar = 'PGPASSFILE',
+                            type = 'string',
+                            default = os.environ.get('PGPASSFILE',
+                                                     os.path.expanduser(
+                                                         '~/.pgpass'))),
+    psql_options.add_option('--pg-driver',
+                            help = 'Database adapter. (psycopg2) ' \
+                            '[default: %default]',
+                            metavar = 'PGDRIVER',
+                            type = 'string',
+                            default = 'psycopg2'),
+
+    parser.add_option_group(psql_options)
+    return parser
+
+
+def init_logging(options):
+    """Initialise logging framework
+
+    :param options: Options obtained from optparse"""
+
+    if not options.quiet:
+        warning_handler = logging.StreamHandler(sys.stderr)
+        warning_handler.setLevel(logging.WARNING)
+        warning_handler.formatter = logging.Formatter("%(name)s: [%(levelname)s] %(message)s")
+        _log.addHandler(warning_handler)
+        logging.getLogger('wp_import').addHandler(warning_handler)
+        logging.getLogger('mwdb').addHandler(warning_handler)
+
+        if options.verbose or options.debug:
+            console = logging.StreamHandler()
+            if options.debug:
+                console.setLevel(logging.DEBUG)
+            else:
+                console.setLevel(logging.INFO)
+            console.formatter = logging.Formatter("%(message)s")
+            console.addFilter(WarningLimit())
+            _log.addHandler(console)
+
+            logging.getLogger('wp_import').addHandler(console)
+            logging.getLogger('mwdb').addHandler(console)
+
+    if options.log_file:
+        log_file_handler = logging.FileHandler(
+            options.log_file)
+        log_file_handler.setLevel(
+            logging.getLevelName(options.log_file_level))
+        log_file_handler.formatter = logging.Formatter("%(name)s: [%(levelname)s] %(message)s")
+        _log.addHandler(log_file_handler)
+
+        logging.getLogger('wp_import').addHandler(log_file_handler)
+        logging.getLogger('mwdb').addHandler(log_file_handler)
+
+    _log.debug("Logging initialised")
+
+
+def psql_password(options):
+    """Get password from pgpass.
+
+    This function will terminate the program if the password could not be
+    read!
+    """
+    try:
+        return wpi_psql.password_from_pgpass(options)
+    except IOError as io_err:
+        critical_error(io_err, wpi_exc.ENOENT)
+    except StopIteration as stopit_err:
+        msg = 'Could not read password for {0.pg_user}@{0.pg_host}:{0.pg_port}/*' \
+                'from {0.pg_passfile}'.format(options)
+        critical_error(msg, wpi_exc.EPASS)
+
+
+def critical_error(msg, exit_code):
+    _log.error(msg)
+    sys.exit(exit_code)
+
+
+def _main():
+    parser = init_parser()
+    (options, args) = parser.parse_args()
+
+    init_logging(options)
+
+    if options.version:
+        print 'wp-import version {0}\n{1}'.format(__version__,
+                                                    __copyright__)
+        sys.exit(0)
+
+    if not args:
+        critical_error("Missing argument (import path)", wpi_exc.EARGUMENT)
+
+    config = ConfigParser.SafeConfigParser()
+
+    try:
+        config.read(options.config)
+    except IOError as io_err:
+        critical_error('Configuration file not found: {0.config}'.format(
+            options, wpi_exc.ENOENT))
+
+    if options.postgresql:
+        options.pg_password = psql_password(options)
+        pg_importer = wpi_imp.PostgreSQLImporter(config=config,
+                                                options=options)
+        pg_importer.import_dumps(args)
+
+
+if __name__ == '__main__':
+    try:
+        _main()
+    except KeyboardInterrupt:
+        _log.warning("Interrupted by user!")
+        pass
+    finally:
+        logging.shutdown()
