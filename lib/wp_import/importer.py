@@ -191,7 +191,7 @@ class PostgreSQLImporter(Importer):
 
         _log.info('{0}.{1}: Importing data'.format(db_name, table))
 
-        for stmt in insert_statements:
+        for stmt in statements:
             psql_process.stdin.write(b'{0}\n'.format(stmt.encode('utf8')))
         psql_process.stdin.close()
 
@@ -306,7 +306,7 @@ class PostgreSQLImporter(Importer):
                 psql_returncode = self._psql_pipe(
                     self._database_name(dump_info), table, dump_f)
 
-                if psql_process.returncode != 0:
+                if psql_returncode != 0:
                     _log.info('{0}.{1}: Import failed. Drop Table'.format(
                         self._database_name(dump_info), table))
                     dump_db.drop_table(table)
