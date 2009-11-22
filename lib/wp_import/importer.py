@@ -192,9 +192,13 @@ class PostgreSQLImporter(Importer):
         _log.info('{0}.{1}: Importing data'.format(db_name, table))
 
         for stmt in statements:
-            psql_process.stdin.write(b'{0}\n'.format(stmt.encode('utf8')))
-        psql_process.stdin.close()
+            if isinstance(stmt, unicode):
+                stmt = stmt.encode('utf8')
 
+            stmt = stmt.strip()
+            psql_process.stdin.write(b'{0}\n'.format(stmt))
+
+        psql_process.stdin.close()
         psql_process.wait()
 
         _log.info('psql [{0:d}]: Exited with {1}'.format(
